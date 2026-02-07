@@ -1,0 +1,638 @@
+<!DOCTYPE html>
+<html lang="en-US">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport"
+        content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
+    <title>SpeedTest - speedtest.yp23.dpdns.org</title>
+    <script src="chart.min.js"></script>
+    <style>
+        :root {
+            --primary: #007AFF;
+            --secondary: #FF9500;
+            --bg: #F5F5F7;
+            --card: #FFFFFF;
+            --text: #1D1D1F;
+            --subtext: #6E6E6E;
+            --border: #E5E5E7;
+            --gauge-bg: #E5E5E7;
+            --stat-bg: #FBFBFD;
+            --modal-overlay: rgba(255, 255, 255, 0.8);
+        }
+
+        [data-theme="dark"] {
+            --bg: #000000;
+            --card: #1C1C1E;
+            --text: #F5F5F7;
+            --subtext: #A1A1A6;
+            --border: #38383A;
+            --gauge-bg: #38383A;
+            --stat-bg: #2C2C2E;
+            --modal-overlay: rgba(0, 0, 0, 0.8);
+        }
+
+        html,
+        body {
+            margin: 0;
+            padding: 0;
+            width: 100%;
+            height: 100%;
+            overflow: hidden;
+            touch-action: none;
+        }
+
+        body {
+            font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif;
+            background-color: var(--bg);
+            color: var(--text);
+            display: flex;
+            justify-content: center;
+            align-items: center;
+            transition: background 0.3s;
+            -webkit-tap-highlight-color: transparent;
+        }
+
+        .container {
+            width: 100%;
+            max-width: 400px;
+            margin: 0 12px;
+            background: var(--card);
+            padding: 20px 16px;
+            border-radius: 32px;
+            border: 1px solid var(--border);
+            box-shadow: 0 10px 30px rgba(0, 0, 0, 0.05);
+            position: relative;
+            box-sizing: border-box;
+            z-index: 10;
+        }
+
+        .top-controls {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 15px;
+            gap: 4px;
+        }
+
+        .thread-toggle {
+            display: flex;
+            background: var(--stat-bg);
+            border: 1px solid var(--border);
+            padding: 2px;
+            border-radius: 10px;
+            cursor: pointer;
+            flex-shrink: 1;
+        }
+
+        .thread-toggle div {
+            padding: 5px 8px;
+            font-size: 10px;
+            font-weight: 700;
+            border-radius: 8px;
+            transition: all 0.2s;
+            color: var(--subtext);
+            white-space: nowrap;
+        }
+
+        .thread-toggle div.active {
+            background: var(--card);
+            color: var(--primary);
+            box-shadow: 0 2px 5px rgba(0, 0, 0, 0.1);
+        }
+
+        .lang-select {
+            background: var(--stat-bg);
+            border: 1px solid var(--border);
+            color: var(--text);
+            font-size: 10px;
+            font-weight: 600;
+            border-radius: 6px;
+            padding: 3px 2px;
+            min-width: 60px;
+            max-width: 80px;
+            outline: none;
+        }
+
+        .icon-btn {
+            font-size: 16px;
+            cursor: pointer;
+            padding: 4px;
+            user-select: none;
+        }
+
+        .icon-btn.disabled {
+            opacity: 0.2;
+            cursor: not-allowed;
+        }
+
+        .gauge-box {
+            position: relative;
+            width: 100%;
+            max-width: 260px;
+            aspect-ratio: 1 / 1;
+            margin: 0 auto;
+        }
+
+        .gauge-center {
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            display: flex;
+            flex-direction: column;
+            justify-content: center;
+            align-items: center;
+            pointer-events: none;
+        }
+
+        .gauge-center .num {
+            font-size: clamp(36px, 12vw, 56px);
+            font-weight: 700;
+            line-height: 1;
+            margin-top: -10px;
+        }
+
+        .gauge-center .unit {
+            position: absolute;
+            bottom: 32%;
+            font-size: 12px;
+            color: var(--subtext);
+            font-weight: 600;
+        }
+
+        #history_modal {
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background: var(--modal-overlay);
+            backdrop-filter: blur(15px);
+            -webkit-backdrop-filter: blur(15px);
+            display: none;
+            justify-content: center;
+            align-items: center;
+            z-index: 100;
+        }
+
+        .modal-content {
+            width: 94%;
+            max-width: 440px;
+            background: var(--card);
+            border-radius: 24px;
+            border: 1px solid var(--border);
+            padding: 16px;
+            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            max-height: 80vh;
+            overflow-y: auto;
+        }
+
+        .modal-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 12px;
+            padding: 0 4px 8px 4px;
+            border-bottom: 1px solid var(--border);
+        }
+
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(3, 1fr);
+            gap: 8px;
+        }
+
+        .result-item {
+            background: var(--stat-bg);
+            border: 1px solid var(--border);
+            padding: 10px 0;
+            border-radius: 14px;
+            text-align: center;
+        }
+
+        .result-item.active {
+            border-color: var(--primary);
+        }
+
+        .result-item span {
+            display: block;
+            font-size: 9px;
+            font-weight: 700;
+            opacity: 0.6;
+            text-transform: uppercase;
+            margin-bottom: 2px;
+        }
+
+        .result-item b {
+            font-size: 12px;
+            font-weight: 700;
+        }
+
+        .progress-wrapper {
+            height: 4px;
+            margin: 15px 0;
+        }
+
+        .prog-track {
+            flex: 1;
+            background: var(--border);
+            border-radius: 4px;
+            overflow: hidden;
+            position: relative;
+            height: 100%;
+        }
+
+        .prog-bar {
+            position: absolute;
+            height: 100%;
+            width: 0%;
+            transition: width 0.1s linear;
+        }
+
+        #bar_dl {
+            background: var(--primary);
+        }
+
+        #bar_ul {
+            background: var(--secondary);
+        }
+
+        #final_report {
+            background: var(--stat-bg);
+            border: 1px solid var(--border);
+            border-radius: 20px;
+            padding: 16px;
+            margin-top: 5px;
+            display: none;
+        }
+
+        .report-row {
+            display: flex;
+            justify-content: space-between;
+            align-items: flex-end;
+            margin-bottom: 10px;
+        }
+
+        .report-val {
+            font-size: 24px;
+            font-weight: 800;
+            line-height: 1;
+        }
+
+        .report-data {
+            font-size: 10px;
+            font-weight: 700;
+            opacity: 0.5;
+        }
+
+        .total-info {
+            display: flex;
+            justify-content: space-between;
+            border-top: 1px dashed var(--border);
+            padding-top: 12px;
+            align-items: center;
+        }
+
+        .history-item {
+            display: grid;
+            grid-template-columns: 1.8fr 1.2fr 1.2fr 1fr 0.8fr;
+            font-size: 10px;
+            padding: 12px 4px;
+            border-bottom: 1px solid var(--border);
+            align-items: center;
+            gap: 2px;
+        }
+
+        .h-time {
+            color: var(--subtext);
+            font-weight: 600;
+            font-size: 9px;
+        }
+
+        .h-col {
+            display: flex;
+            flex-direction: column;
+            align-items: flex-end;
+        }
+
+        .h-speed {
+            font-weight: 700;
+        }
+
+        .h-data {
+            font-size: 8px;
+            opacity: 0.5;
+            font-weight: 600;
+            margin-top: 1px;
+        }
+
+        .h-dl .h-speed {
+            color: var(--primary);
+        }
+
+        .h-ul .h-speed {
+            color: var(--secondary);
+        }
+
+        .h-ping {
+            text-align: right;
+            font-weight: 600;
+            font-size: 9px;
+        }
+
+        button {
+            width: 100%;
+            padding: 16px;
+            border-radius: 18px;
+            border: none;
+            background: var(--primary);
+            color: white;
+            font-size: 15px;
+            font-weight: 700;
+            cursor: pointer;
+            margin-top: 10px;
+        }
+
+        button:disabled {
+            opacity: 0.4;
+        }
+    </style>
+</head>
+
+<body>
+    <div id="history_modal" onclick="closeHistory()">
+        <div class="modal-content" onclick="event.stopPropagation()">
+            <div class="modal-header">
+                <span style="font-weight: 800; font-size: 14px;" id="ui_hist_title">History</span>
+                <span style="cursor: pointer; font-size: 20px;" onclick="closeHistory()">×</span>
+            </div>
+            <div id="history_list"></div>
+        </div>
+    </div>
+
+    <div class="container">
+        <div class="top-controls">
+            <div class="thread-toggle">
+                <div onclick="setThread(1)" id="t1">1-TH</div>
+                <div onclick="setThread(8)" id="t8">8-TH</div>
+                <div onclick="setThread(16)" id="t16">Turbo</div>
+            </div>
+            <div style="display: flex; gap: 4px; align-items: center; flex-shrink: 0;">
+                <select class="lang-select" id="lang_select" onchange="changeLang(this.value)"></select>
+                <div id="hist_icon" class="icon-btn" onclick="openHistory()">📜</div>
+                <div class="icon-btn" onclick="toggleTheme()">🌓</div>
+            </div>
+        </div>
+
+        <div class="results-grid" id="live_grid">
+            <div class="result-item" id="p-box"><span id="ui_ping"></span><b id="pV">-</b></div>
+            <div class="result-item" id="d-box"><span id="ui_dl"></span><b id="dV">-</b></div>
+            <div class="result-item" id="u-box"><span id="ui_ul"></span><b id="uV">-</b></div>
+        </div>
+
+        <div class="progress-wrapper" id="prog_wrapper">
+            <div style="display:flex; gap:6px; height:100%;">
+                <div class="prog-track">
+                    <div class="prog-bar" id="bar_dl"></div>
+                </div>
+                <div class="prog-track">
+                    <div class="prog-bar" id="bar_ul"></div>
+                </div>
+            </div>
+        </div>
+
+        <div class="gauge-box" id="gauge_box">
+            <canvas id="speedGauge"></canvas>
+            <div class="gauge-center">
+                <span class="num" id="liveS">0.0</span>
+                <span id="liveUnit" class="unit">Mbps</span>
+            </div>
+        </div>
+
+        <div id="final_report">
+            <div class="report-row">
+                <div><span id="ui_r_dl" style="font-size:9px; font-weight:700; opacity:0.6"></span>
+                    <div class="report-val" id="res_dl" style="color:var(--primary)">-</div>
+                </div>
+                <div class="report-data" id="data_dl">-</div>
+            </div>
+            <div class="report-row">
+                <div><span id="ui_r_ul" style="font-size:9px; font-weight:700; opacity:0.6"></span>
+                    <div class="report-val" id="res_ul" style="color:var(--secondary)">-</div>
+                </div>
+                <div class="report-data" id="data_ul">-</div>
+            </div>
+            <div class="total-info">
+                <div>
+                    <div style="font-size:11px; font-weight:700"><span id="ui_r_ping"></span>: <span
+                            id="res_ping">-</span></div>
+                    <div id="res_date" style="font-size:9px; opacity:0.4; font-weight:600;"></div>
+                </div>
+                <div style="text-align:right;"><span id="ui_total"
+                        style="font-size:8px; font-weight:700; opacity:0.5;"></span>
+                    <div id="data_total" style="font-size:14px; font-weight:800; line-height:1;">-</div>
+                </div>
+            </div>
+        </div>
+
+        <button id="startBtn" onclick="run()"><span id="ui_btn"></span></button>
+    </div>
+
+    <script>
+        let currentThreads = 8, dlBytes = 0, ulBytes = 0, isTesting = false, chart;
+        const TEST_DURATION = 10000;
+
+        const i18n = {
+            'en-US': { ping: "Ping", dl: "Download", ul: "Upload", btn: "Start", testing: "Testing...", r_dl: "Download Speed", r_ul: "Upload Speed", r_ping: "Ping", total: "Total Data", t1: "Single", t8: "Multi", t16: "Turbo", label: "English", hist: "History", noData: "No History Data" },
+            'zh-CN': { ping: "延迟", dl: "下载", ul: "上传", btn: "开始测试", testing: "测试中...", r_dl: "下载速度", r_ul: "上传速度", r_ping: "延迟", total: "消耗流量", t1: "单线程", t8: "多线程", t16: "极速", label: "简体中文", hist: "历史记录", noData: "暂无历史记录" },
+            'zh-TW': { ping: "延遲", dl: "下載", ul: "上傳", btn: "開始測試", testing: "測試中...", r_dl: "下載速度", r_ul: "上傳速度", r_ping: "延遲", total: "總消耗流量", t1: "單線程", t8: "多線程", t16: "極速", label: "繁体中文", hist: "歷史紀錄", noData: "暫無歷史紀錄" },
+            'ja-JP': { ping: "ピング", dl: "ダウン", ul: "アップ", btn: "開始", testing: "テスト...", r_dl: "DL 速度", r_ul: "UL 速度", r_ping: "遅延", total: "データ量", t1: "シングル", t8: "マルチ", t16: "ターボ", label: "日本語", hist: "履歴", noData: "履歴なし" },
+            'ko-KR': { ping: "핑", dl: "다운", ul: "업", btn: "시작", testing: "테스트...", r_dl: "다운 속도", r_ul: "업로드 속도", r_ping: "지연", total: "총 데이터", t1: "싱글", t8: "멀티", t16: "터보", label: "한국어", hist: "기록", noData: "데이터 없음" },
+            'fr-FR': { ping: "Ping", dl: "Desc", ul: "Mont", btn: "Lancer", testing: "En cours...", r_dl: "Débit desc.", r_ul: "Débit mont.", r_ping: "Ping", total: "Données", t1: "Mono", t8: "Multi", t16: "Turbo", label: "FR", hist: "Historique", noData: "Aucune donnée" },
+            'de-DE': { ping: "Ping", dl: "Down", ul: "Up", btn: "Start", testing: "Test...", r_dl: "Download", r_ul: "Upload", r_ping: "Ping", total: "Daten", t1: "Single", t8: "Multi", t16: "Turbo", label: "DE", hist: "Verlauf", noData: "Keine Daten" },
+            'ar-SA': { ping: "بنج", dl: "تنزيل", ul: "رفع", btn: "ابدأ", testing: "اختبار...", r_dl: "سرعة التنزيل", r_ul: "سرعة الرفع", r_ping: "الاستجابة", total: "البيانات", t1: "فردي", t8: "متعدد", t16: "تيربو", label: "العربية", hist: "السجل", noData: "لا توجد بيانات" },
+            'es-ES': { ping: "Ping", dl: "Bajar", ul: "Subir", btn: "Inicio", testing: "Probando...", r_dl: "Descarga", r_ul: "Subida", r_ping: "Ping", total: "Datos", t1: "Uno", t8: "Multi", t16: "Turbo", label: "ES", hist: "Historial", noData: "Sin datos" },
+            'ru-RU': { ping: "Пинг", dl: "Загр", ul: "Отд", btn: "Пуск", testing: "Тест...", r_dl: "Загрузка", r_ul: "Отдача", r_ping: "Пинг", total: "Трафик", t1: "Один", t8: "Много", t16: "Турбо", label: "RU", hist: "История", noData: "Нет данных" }
+        };
+
+        function formatDate(timestamp, lang) {
+            try {
+                const date = new Date(timestamp);
+                const dtf = new Intl.DateTimeFormat(lang, { month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false });
+                return dtf.format(date);
+            } catch (e) { return new Date(timestamp).toLocaleString(); }
+        }
+
+        function renderHistoryList() {
+            const history = JSON.parse(localStorage.getItem('speedtest_history') || '[]');
+            const list = document.getElementById('history_list');
+            if (history.length === 0) {
+                list.innerHTML = `<div style="text-align:center; padding:30px; opacity:0.5; font-size:12px;">${i18n[window.currentLang].noData}</div>`;
+                return;
+            }
+            list.innerHTML = history.map(h => `
+                <div class="history-item">
+                    <span class="h-time">${formatDate(h.time, window.currentLang)}</span>
+                    <div class="h-col h-dl"><span class="h-speed">${h.dl}</span><span class="h-data">${h.dlData || '0.0'}↓</span></div>
+                    <div class="h-col h-ul"><span class="h-speed">${h.ul}</span><span class="h-data">${h.ulData || '0.0'}↑</span></div>
+                    <div class="h-col"><span style="font-weight:700;">${h.totalData || '0.0'}</span><span class="h-data">MB Σ</span></div>
+                    <span class="h-ping">${h.ping}ms</span>
+                </div>`).join('');
+        }
+
+        function changeLang(lang, save = true) {
+            window.currentLang = i18n[lang] ? lang : 'en-US';
+            const t = i18n[window.currentLang];
+            const map = { ui_ping: t.ping, ui_dl: t.dl, ui_ul: t.ul, ui_r_dl: t.r_dl, ui_r_ul: t.r_ul, ui_r_ping: t.r_ping, ui_total: t.total, t1: t.t1, t8: t.t8, t16: t.t16, ui_hist_title: t.hist };
+            for (let id in map) { if (document.getElementById(id)) document.getElementById(id).innerText = map[id]; }
+            document.getElementById('ui_btn').innerText = isTesting ? t.testing : t.btn;
+            document.getElementById('lang_select').value = window.currentLang;
+            document.body.dir = (window.currentLang === 'ar-SA') ? 'rtl' : 'ltr';
+            if (save) savePrefs();
+            if (document.getElementById('history_modal').style.display === 'flex') renderHistoryList();
+        }
+
+        function openHistory() {
+            if (isTesting) return;
+            renderHistoryList();
+            document.getElementById('history_modal').style.display = 'flex';
+        }
+
+        function closeHistory() { document.getElementById('history_modal').style.display = 'none'; }
+
+        function savePrefs() { localStorage.setItem('speedtest_prefs', JSON.stringify({ threads: currentThreads, lang: window.currentLang, theme: document.documentElement.getAttribute('data-theme') })); }
+
+        function loadPrefs() {
+            const prefs = JSON.parse(localStorage.getItem('speedtest_prefs'));
+            if (prefs) {
+                if (prefs.threads) setThread(prefs.threads, false);
+                if (prefs.theme) document.documentElement.setAttribute('data-theme', prefs.theme);
+                changeLang(prefs.lang || 'en-US', false);
+            } else {
+                changeLang(navigator.language.includes('zh') ? 'zh-CN' : 'en-US', false);
+                setThread(8, false);
+            }
+        }
+
+        function setThread(num, save = true) {
+            if (isTesting) return;
+            currentThreads = num;
+            document.querySelectorAll('.thread-toggle div').forEach(el => el.classList.remove('active'));
+            document.getElementById('t' + num).classList.add('active');
+            if (save) savePrefs();
+        }
+
+        function toggleTheme() {
+            const theme = document.documentElement.getAttribute('data-theme') === 'dark' ? 'light' : 'dark';
+            document.documentElement.setAttribute('data-theme', theme);
+            savePrefs(); initChart();
+        }
+
+        function initChart() {
+            const ctx = document.getElementById('speedGauge').getContext('2d');
+            const color = getComputedStyle(document.documentElement).getPropertyValue('--gauge-bg').trim();
+            if (chart) chart.destroy();
+            chart = new Chart(ctx, {
+                type: 'doughnut',
+                data: { datasets: [{ data: [0, 100], backgroundColor: ['#007AFF', color], borderWidth: 0, circumference: 240, rotation: 240, cutout: '85%' }] },
+                options: { responsive: true, maintainAspectRatio: true, animation: { duration: 150 }, plugins: { tooltip: false } }
+            });
+        }
+
+        function updateGauge(speed, isUl = false) {
+            document.getElementById('liveS').innerText = speed.toFixed(1);
+            let maxRange = speed < 85 ? 100 : (speed < 850 ? 1000 : 5000);
+            let gaugeVal = Math.min(100, (speed / maxRange) * 100);
+            chart.data.datasets[0].backgroundColor[0] = isUl ? '#FF9500' : '#007AFF';
+            chart.data.datasets[0].data = [gaugeVal, 100 - gaugeVal];
+            chart.update('none');
+        }
+
+        async function measure(mode) {
+            const isDl = (mode === 'DL'), bar = document.getElementById(isDl ? 'bar_dl' : 'bar_ul'), box = document.getElementById(isDl ? 'd-box' : 'u-box');
+            box.classList.add('active');
+            const start = performance.now(), controller = new AbortController();
+            let loaded = 0;
+            const worker = async () => {
+                while (performance.now() - start < TEST_DURATION) {
+                    try {
+                        if (isDl) {
+                            const res = await fetch(`/download?t=${Math.random()}`, { signal: controller.signal });
+                            const reader = res.body.getReader();
+                            while (true) {
+                                const { done, value } = await reader.read();
+                                if (done) break;
+                                loaded += value.length; dlBytes += value.length;
+                                updateGauge((loaded * 8) / ((performance.now() - start) / 1000 * 1024 * 1024), false);
+                                bar.style.width = Math.min(100, ((performance.now() - start) / TEST_DURATION) * 100) + '%';
+                            }
+                        } else {
+                            const chunk = new Uint8Array(5 * 1024 * 1024);
+                            await fetch('/upload', { method: 'POST', body: chunk, signal: controller.signal });
+                            loaded += chunk.length; ulBytes += chunk.length;
+                            updateGauge((loaded * 8) / ((performance.now() - start) / 1000 * 1024 * 1024), true);
+                            bar.style.width = Math.min(100, ((performance.now() - start) / TEST_DURATION) * 100) + '%';
+                        }
+                    } catch (e) { break; }
+                }
+            };
+            await Promise.race([Promise.allSettled(Array.from({ length: currentThreads }, worker)), new Promise(r => setTimeout(r, TEST_DURATION))]);
+            controller.abort(); box.classList.remove('active');
+            return (loaded * 8) / (TEST_DURATION / 1000 * 1024 * 1024);
+        }
+
+        async function run() {
+            isTesting = true;
+            document.getElementById('final_report').style.display = 'none';
+            document.getElementById('gauge_box').style.display = 'block';
+            document.getElementById('live_grid').style.display = 'grid';
+            document.getElementById('hist_icon').classList.add('disabled');
+            document.getElementById('startBtn').disabled = true;
+            dlBytes = 0; ulBytes = 0;
+            initChart();
+
+            const pStart = performance.now();
+            try { await fetch('/ping'); } catch (e) { }
+            const ping = Math.round(performance.now() - pStart);
+            document.getElementById('pV').innerText = ping + " ms";
+
+            const dl = await measure('DL');
+            document.getElementById('dV').innerText = dl.toFixed(1) + " Mbps";
+            const ul = await measure('UL');
+            document.getElementById('uV').innerText = ul.toFixed(1) + " Mbps";
+
+            const now = Date.now();
+            const dlMB = (dlBytes / 1048576).toFixed(1), ulMB = (ulBytes / 1048576).toFixed(1);
+            const totalMB = ((dlBytes + ulBytes) / 1048576).toFixed(1);
+
+            document.getElementById('res_dl').innerText = dl.toFixed(2);
+            document.getElementById('res_ul').innerText = ul.toFixed(2);
+            document.getElementById('res_ping').innerText = ping + " ms";
+            document.getElementById('data_dl').innerText = dlMB + " MB ↓";
+            document.getElementById('data_ul').innerText = ulMB + " MB ↑";
+            document.getElementById('data_total').innerText = totalMB + " MB";
+            document.getElementById('res_date').innerText = formatDate(now, window.currentLang);
+
+            let history = JSON.parse(localStorage.getItem('speedtest_history') || '[]');
+            history.unshift({ time: now, dl: dl.toFixed(2), ul: ul.toFixed(2), ping, dlData: dlMB, ulData: ulMB, totalData: totalMB });
+            localStorage.setItem('speedtest_history', JSON.stringify(history.slice(0, 10)));
+
+            document.getElementById('gauge_box').style.display = 'none';
+            document.getElementById('live_grid').style.display = 'none';
+            document.getElementById('final_report').style.display = 'block';
+            isTesting = false;
+            document.getElementById('hist_icon').classList.remove('disabled');
+            document.getElementById('startBtn').disabled = false;
+            changeLang(window.currentLang);
+        }
+
+        const sel = document.getElementById('lang_select');
+        Object.keys(i18n).forEach(l => { const opt = document.createElement('option'); opt.value = l; opt.text = i18n[l].label; sel.add(opt); });
+        loadPrefs(); initChart();
+        document.addEventListener('touchmove', (e) => e.target.closest('.modal-content') ? null : e.preventDefault(), { passive: false });
+    </script>
+</body>
+
+</html>
