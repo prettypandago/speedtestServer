@@ -132,6 +132,7 @@
             max-width: 260px;
             aspect-ratio: 1 / 1;
             margin: 0 auto;
+            filter: none !important;
         }
 
         .gauge-center {
@@ -212,8 +213,14 @@
             text-align: center;
         }
 
-        .result-item.active {
-            border-color: var(--primary);
+        .result-item.active-dl {
+            border-color: var(--primary) !important;
+            box-shadow: 0 0 8px rgba(0, 122, 255, 0.2);
+        }
+
+        .result-item.active-ul {
+            border-color: var(--secondary) !important;
+            box-shadow: 0 0 8px rgba(255, 149, 0, 0.2);
         }
 
         .result-item span {
@@ -297,7 +304,7 @@
 
         .history-item {
             display: grid;
-            grid-template-columns: 1.8fr 1.2fr 1.2fr 1fr 0.8fr;
+            grid-template-columns: 2fr 1.1fr 1.1fr 1fr 0.8fr;
             font-size: 10px;
             padding: 12px 4px;
             border-bottom: 1px solid var(--border);
@@ -349,14 +356,64 @@
             border: none;
             background: var(--primary);
             color: white;
-            font-size: 15px;
+            font-size: 16px;
             font-weight: 700;
             cursor: pointer;
             margin-top: 10px;
+            transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+            box-shadow: 0 4px 12px rgba(0, 122, 255, 0.2);
+            position: relative;
+            overflow: hidden;
+        }
+
+        button:hover:not(:disabled) {
+            filter: brightness(1.1);
+            transform: translateY(-1px);
+            box-shadow: 0 6px 16px rgba(0, 122, 255, 0.3);
+        }
+
+        button:active:not(:disabled) {
+            transform: scale(0.96);
+            filter: brightness(0.9);
+        }
+
+        button.testing {
+            animation: pulse 1.5s infinite;
+            cursor: wait;
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(0, 122, 255, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(0, 122, 255, 0);
+            }
+        }
+
+        @keyframes pulse {
+            0% {
+                box-shadow: 0 0 0 0 rgba(0, 122, 255, 0.4);
+            }
+
+            70% {
+                box-shadow: 0 0 0 10px rgba(0, 122, 255, 0);
+            }
+
+            100% {
+                box-shadow: 0 0 0 0 rgba(0, 122, 255, 0);
+            }
         }
 
         button:disabled {
-            opacity: 0.4;
+            opacity: 0.6;
+            cursor: not-allowed;
+            transform: none !important;
         }
     </style>
 </head>
@@ -472,14 +529,24 @@
                 list.innerHTML = `<div style="text-align:center; padding:30px; opacity:0.5; font-size:12px;">${i18n[window.currentLang].noData}</div>`;
                 return;
             }
-            list.innerHTML = history.map(h => `
+
+            const t = i18n[window.currentLang];
+            list.innerHTML = history.map(h => {
+                // 根据模式数值匹配文字
+                let modeTxt = h.mode === 1 ? t.t1 : (h.mode === 16 ? t.t16 : t.t8);
+
+                return `
                 <div class="history-item">
-                    <span class="h-time">${formatDate(h.time, window.currentLang)}</span>
+                    <div class="h-col" style="align-items: flex-start;">
+                        <span class="h-time">${formatDate(h.time, window.currentLang)}</span>
+                        <span style="font-size:8px; opacity:0.6; font-weight:800; color:var(--primary)">${modeTxt}</span>
+                    </div>
                     <div class="h-col h-dl"><span class="h-speed">${h.dl}</span><span class="h-data">${h.dlData || '0.0'}↓</span></div>
                     <div class="h-col h-ul"><span class="h-speed">${h.ul}</span><span class="h-data">${h.ulData || '0.0'}↑</span></div>
                     <div class="h-col"><span style="font-weight:700;">${h.totalData || '0.0'}</span><span class="h-data">MB Σ</span></div>
                     <span class="h-ping">${h.ping}ms</span>
-                </div>`).join('');
+                </div>`;
+            }).join('');
         }
 
         function changeLang(lang, save = true) {
@@ -536,8 +603,24 @@
             if (chart) chart.destroy();
             chart = new Chart(ctx, {
                 type: 'doughnut',
-                data: { datasets: [{ data: [0, 100], backgroundColor: ['#007AFF', color], borderWidth: 0, circumference: 240, rotation: 240, cutout: '85%' }] },
-                options: { responsive: true, maintainAspectRatio: true, animation: { duration: 150 }, plugins: { tooltip: false } }
+                data: {
+                    datasets: [{
+                        data: [0, 100],
+                        backgroundColor: ['#007AFF', color],
+                        hoverBackgroundColor: ['#007AFF', color],
+                        hoverOffset: 0,
+                        borderWidth: 0,
+                        circumference: 240,
+                        rotation: 240,
+                        cutout: '85%'
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: true,
+                    animation: { duration: 150 },
+                    plugins: { tooltip: false }
+                }
             });
         }
 
@@ -545,49 +628,87 @@
             document.getElementById('liveS').innerText = speed.toFixed(1);
             let maxRange = speed < 85 ? 100 : (speed < 850 ? 1000 : 5000);
             let gaugeVal = Math.min(100, (speed / maxRange) * 100);
-            chart.data.datasets[0].backgroundColor[0] = isUl ? '#FF9500' : '#007AFF';
+
+            const themeColor = isUl ? '#FF9500' : '#007AFF';
+
+            chart.data.datasets[0].backgroundColor[0] = themeColor;
+            chart.data.datasets[0].hoverBackgroundColor[0] = themeColor;
+
             chart.data.datasets[0].data = [gaugeVal, 100 - gaugeVal];
             chart.update('none');
         }
 
         async function measure(mode) {
-            const isDl = (mode === 'DL'), bar = document.getElementById(isDl ? 'bar_dl' : 'bar_ul'), box = document.getElementById(isDl ? 'd-box' : 'u-box');
-            box.classList.add('active');
+            const isDl = (mode === 'DL'),
+                bar = document.getElementById(isDl ? 'bar_dl' : 'bar_ul'),
+                box = document.getElementById(isDl ? 'd-box' : 'u-box'),
+                btn = document.getElementById('startBtn');
+
+            document.querySelectorAll('.result-item').forEach(el => {
+                el.classList.remove('active-dl', 'active-ul');
+            });
+
+            btn.style.background = isDl ? 'var(--primary)' : 'var(--secondary)';
+
+            box.classList.add(isDl ? 'active-dl' : 'active-ul');
+
             const start = performance.now(), controller = new AbortController();
             let loaded = 0;
-            const worker = async () => {
-                while (performance.now() - start < TEST_DURATION) {
-                    try {
-                        if (isDl) {
-                            const res = await fetch(`/download?t=${Math.random()}`, { signal: controller.signal });
-                            const reader = res.body.getReader();
-                            while (true) {
-                                const { done, value } = await reader.read();
-                                if (done) break;
-                                loaded += value.length; dlBytes += value.length;
-                                updateGauge((loaded * 8) / ((performance.now() - start) / 1000 * 1024 * 1024), false);
+            try {
+                const worker = async () => {
+                    while (performance.now() - start < TEST_DURATION) {
+                        try {
+                            if (isDl) {
+                                const res = await fetch(`/download?t=${Math.random()}`, { signal: controller.signal });
+                                const reader = res.body.getReader();
+                                while (true) {
+                                    const { done, value } = await reader.read();
+                                    if (done) break;
+                                    loaded += value.length; dlBytes += value.length;
+                                    updateGauge((loaded * 8) / ((performance.now() - start) / 1000 * 1024 * 1024), false);
+                                    bar.style.width = Math.min(100, ((performance.now() - start) / TEST_DURATION) * 100) + '%';
+                                }
+                            } else {
+                                const chunk = new Uint8Array(5 * 1024 * 1024);
+                                await fetch('/upload', { method: 'POST', body: chunk, signal: controller.signal });
+                                loaded += chunk.length; ulBytes += chunk.length;
+                                updateGauge((loaded * 8) / ((performance.now() - start) / 1000 * 1024 * 1024), true);
                                 bar.style.width = Math.min(100, ((performance.now() - start) / TEST_DURATION) * 100) + '%';
                             }
-                        } else {
-                            const chunk = new Uint8Array(5 * 1024 * 1024);
-                            await fetch('/upload', { method: 'POST', body: chunk, signal: controller.signal });
-                            loaded += chunk.length; ulBytes += chunk.length;
-                            updateGauge((loaded * 8) / ((performance.now() - start) / 1000 * 1024 * 1024), true);
-                            bar.style.width = Math.min(100, ((performance.now() - start) / TEST_DURATION) * 100) + '%';
-                        }
-                    } catch (e) { break; }
-                }
-            };
-            await Promise.race([Promise.allSettled(Array.from({ length: currentThreads }, worker)), new Promise(r => setTimeout(r, TEST_DURATION))]);
-            controller.abort(); box.classList.remove('active');
+                        } catch (e) { break; }
+                    }
+                };
+                await Promise.race([Promise.allSettled(Array.from({ length: currentThreads }, worker)), new Promise(r => setTimeout(r, TEST_DURATION))]);
+            } finally {
+                controller.abort();
+                box.classList.remove('active-dl', 'active-ul');
+            }
             return (loaded * 8) / (TEST_DURATION / 1000 * 1024 * 1024);
         }
 
         async function run() {
             isTesting = true;
+
+            const btn = document.getElementById('startBtn');
+
+            btn.classList.add('testing');
+            btn.disabled = true;
+
+            document.querySelectorAll('.result-item').forEach(el => {
+                el.classList.remove('active-dl', 'active-ul');
+            });
+
             document.getElementById('final_report').style.display = 'none';
             document.getElementById('gauge_box').style.display = 'block';
             document.getElementById('live_grid').style.display = 'grid';
+
+            document.getElementById('bar_dl').style.width = '0%';
+            document.getElementById('bar_ul').style.width = '0%';
+
+            document.getElementById('pV').innerText = "-";
+            document.getElementById('dV').innerText = "-";
+            document.getElementById('uV').innerText = "-";
+
             document.getElementById('hist_icon').classList.add('disabled');
             document.getElementById('startBtn').disabled = true;
             dlBytes = 0; ulBytes = 0;
@@ -616,7 +737,16 @@
             document.getElementById('res_date').innerText = formatDate(now, window.currentLang);
 
             let history = JSON.parse(localStorage.getItem('speedtest_history') || '[]');
-            history.unshift({ time: now, dl: dl.toFixed(2), ul: ul.toFixed(2), ping, dlData: dlMB, ulData: ulMB, totalData: totalMB });
+            history.unshift({
+                time: now,
+                dl: dl.toFixed(2),
+                ul: ul.toFixed(2),
+                ping,
+                dlData: dlMB,
+                ulData: ulMB,
+                totalData: totalMB,
+                mode: currentThreads
+            });
             localStorage.setItem('speedtest_history', JSON.stringify(history.slice(0, 10)));
 
             document.getElementById('gauge_box').style.display = 'none';
@@ -625,6 +755,9 @@
             isTesting = false;
             document.getElementById('hist_icon').classList.remove('disabled');
             document.getElementById('startBtn').disabled = false;
+            btn.classList.remove('testing');
+            btn.style.background = 'var(--primary)';
+            btn.disabled = false;
             changeLang(window.currentLang);
         }
 

@@ -20,7 +20,7 @@ A lightweight network speed test server with a clean web interface for testing n
 
 - Python 3.6+
 - Flask
-- Flask-CORS
+- Flask-cors
 
 ## 🚀 Quick Start
 
